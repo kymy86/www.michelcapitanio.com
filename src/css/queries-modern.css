@@ -1,0 +1,127 @@
+@media only screen and (max-width: 1024px) {
+/*nav mobile*/
+#nav-icon {
+  position:fixed;
+  background: none;
+  left: 15px;
+  top: 15px;
+  width: 30px;
+  height: 30px;
+  z-index: 1000;
+  cursor: pointer;
+  -webkit-transform: rotate(0deg);
+  -moz-transform: rotate(0deg);
+  -ms-transform: rotate(0deg);
+  -o-transform: rotate(0deg);
+  transform: rotate(0deg);
+  -webkit-transition: 0.25s ease-in-out;
+  -moz-transition: 0.25s ease-in-out;
+  -ms-transition: 0.25s ease-in-out;
+  -o-transition: 0.25s ease-in-out;
+  transition: 0.25s ease-in-out;
+}
+
+.menu-line {
+  position: absolute;
+  width: 100%;
+  height: 2px!important;
+  background-color:#111;
+  top: 0px;
+  -webkit-transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -moz-transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -ms-transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -o-transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+}
+
+.menu-line1 {
+  position: absolute;
+  width: 100%;
+  height: 2px!important;
+  background-color:#111;
+  top: 5px;
+  -webkit-transition: top 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -moz-transition: top 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -ms-transition: top 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -o-transition: top 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  transition: top 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+}
+
+.menu-line2 {
+  position: absolute;
+  width: 100%;
+  height: 2px!important;
+  background-color:#111;
+  top: 10px;
+  -webkit-transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -moz-transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -ms-transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -o-transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+}
+
+#nav-icon.open .menu-line {
+  top: 5px;
+  -webkit-transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -moz-transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -ms-transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -o-transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+}
+
+#nav-icon.open .menu-line1 {
+  opacity: 0;
+  -webkit-transition: top 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -moz-transition: top 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -ms-transition: top 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -o-transition: top 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  transition: top 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+}
+
+#nav-icon.open .menu-line2 {
+  top: 5px;
+  opacity: 0;
+  -webkit-transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -moz-transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -ms-transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  -o-transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+  transition: 0.4s  cubic-bezier(.165, 0.840, 0.440, 1.000), opacity 0.4s linear;
+}
+.holdsidebar { width:0px;}
+.lineintro{ display:none;}
+}
+
+@media only screen and (max-width: 980px) {
+.talent {
+  display:none;
+}
+#sidebar-wrappermodern {
+  background:rgba(255,255,255,0.8);
+}
+.sidebar-nav h2 { margin-top:30%; }
+.contenthome {
+  padding:45% 0 25% 0;
+}
+.contentpage {
+	padding:25% 5% 25% 5%;
+}
+}
+
+@media(max-width:360px) {
+.sidebar-nav h2 { margin-top:20%; }
+.contenthome {
+  padding:25% 0 25% 0;
+}
+.nameslide{ font-size:24pt;}
+button{ width:40%; height:auto; font-size:12pt; padding:5px; }
+#nav-icon { width: 25px;height: 25px; }
+h3{ font-size:14pt;}
+input[type="text"], textarea { width:100%; }
+input[type="email"]{ width:80%; }
+}
+
+@media(max-width:320px) {
+.contentintro{ width: 92%; }
+.sidebar-nav li { font-size:14pt;line-height:40px; }
+.bgmodern img{  width:auto; height:100%; }
+}
