@@ -14,3 +14,8 @@ The stack parameters are:
 1. **WebsiteName**: The naked domain
 2. **HostedZoneId**: The id of the hosted zone in Route53.
 
+
+## Diagram
+
+![](./diagram.png)
+
