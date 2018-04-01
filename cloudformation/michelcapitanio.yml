@@ -1,0 +1,112 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Provision my personal website on AWS
+Parameters:
+  WebsiteName:
+    Description: Website name
+    Type: String
+  HostedZoneId:
+    Description: Domain ID hosted zone
+    Type: String
+Mappings:
+  S3ToHostedZoneId:
+    us-east-2:
+      zoneid: Z2O1EMRO9K5GLX
+    us-east-1:
+      zoneid: Z3AQBSTGFYJSTF
+    us-west-1	:
+      zoneid: Z2F56UZL2M1ACD
+    us-west-2:
+      zoneid: Z3BJ6K6RIION7M
+    eu-central-1:
+      zoneid: Z21DNDUVLTQW6Q
+    eu-west-1:
+      zoneid: Z1BKCTXD74EZPE
+    eu-west-2:
+      zoneid: Z3GKZC51ZF0DB4
+    eu-west-3:
+      zoneid: Z3R1K369G5AVDG
+Resources:
+  WebsiteBucketRedirect:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref WebsiteName
+      WebsiteConfiguration:
+        RedirectAllRequestsTo:
+          HostName: !Sub www.${WebsiteName}
+          Protocol: https
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub www.${WebsiteName}
+      AccessControl: PublicRead
+      VersioningConfiguration:
+        Status: Enabled
+  WebsiteCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref WebsiteName
+      SubjectAlternativeNames:
+      - !Sub www.${WebsiteName} 
+      DomainValidationOptions:
+      - DomainName: !Ref WebsiteName
+        ValidationDomain: !Ref WebsiteName
+  WebsiteOriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub ${WebsiteName} CloudFront Origin access identity
+  WebsiteDistribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: WebsiteCertificate
+    Properties:
+      DistributionConfig:
+        Aliases:
+        - !Sub www.${WebsiteName}
+        DefaultRootObject: index.html
+        Enabled: true
+        DefaultCacheBehavior:
+          AllowedMethods:
+          - GET
+          - HEAD
+          TargetOriginId: !Sub S3-www.${WebsiteName}
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          ViewerProtocolPolicy: redirect-to-https
+        Origins:
+        - DomainName: !GetAtt WebsiteBucket.DomainName
+          Id: !Sub S3-www.${WebsiteName}
+          S3OriginConfig:
+            OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${WebsiteOriginAccessIdentity}
+        ViewerCertificate:
+          AcmCertificateArn: !Ref WebsiteCertificate
+          MinimumProtocolVersion: TLSv1.1_2016
+          SslSupportMethod: sni-only
+  WebsiteRedirectRecordSet:
+    Type: AWS::Route53::RecordSet
+    DependsOn: WebsiteBucketRedirect
+    Properties:
+      Name: !Ref WebsiteName
+      Type: A
+      AliasTarget:
+        DNSName: !Sub s3-website-${AWS::Region}.amazonaws.com
+        HostedZoneId: !FindInMap [S3ToHostedZoneId, !Ref "AWS::Region", zoneid]
+      HostedZoneId: !Ref HostedZoneId
+  WebsiteRecordSet:
+    Type: AWS::Route53::RecordSet
+    DependsOn: WebsiteBucket
+    Properties:
+      Name: !Sub www.${WebsiteName}
+      HostedZoneId: !Ref HostedZoneId
+      Type: CNAME
+      TTL: "300"
+      ResourceRecords:
+      - !GetAtt WebsiteDistribution.DomainName
+Outputs:
+  Website:
+    Value: !Sub https://www.${WebsiteName}
+
+
+
+  
