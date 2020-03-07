@@ -1,17 +1,20 @@
 variable "aws_region" {
   default = "us-east-1"
+  type = string
 }
 
 variable "aws_profile" {
   description = "AWS CLI profile"
+  type = string
 }
 
 variable "website_name" {
   description = "Name of your personal website"
+  type = string
 }
 
 variable "hosted_ids" {
-  type = "map"
+  type = map
 
   default = {
     us-east-2    = "Z2O1EMRO9K5GLX"
