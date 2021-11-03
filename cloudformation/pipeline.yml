@@ -1,0 +1,214 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Provision CodePipeline pipeline to replace TravisCI
+
+Parameters:
+
+  RepoOwner:
+    Type: String
+    Description: The Name of the GitHub owner
+  
+  RepoName:
+    Type: String
+    Description: The name of the GitHub Repository
+  
+  RepoBranchName:
+    Type: String
+    Description: The name of the branch
+    Default: master
+  
+  AccessToken:
+    Type: String
+    Description: GitHub Personal Access Token
+    NoEcho: true
+  
+  WebsiteBucketName:
+    Type: String
+    Description: The name of the destination S3 bucket
+  
+  CloudFrontDistroId:
+    Type: String
+    Description: The CloudFront distribution ID
+
+Resources:
+
+  BucketArtifact:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: AES256
+  
+  CodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AWSCodePipelineFullAccess
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - codepipeline.amazonaws.com
+          Action:
+          - 'sts:AssumeRole'
+      Path: /
+      Policies:
+      - PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Action:
+            - s3:GetObject
+            - s3:GetObjectVersion
+            - s3:PutObject
+            - s3:GetBucketAcl
+            - s3:GetBucketLocation
+            Effect: Allow
+            Resource:
+            - !GetAtt BucketArtifact.Arn
+            - !Sub ${BucketArtifact.Arn}/*
+          - Action:
+            - codebuild:*
+            Effect: Allow
+            Resource: "*"
+            
+        PolicyName: website-codepipeline-role-policy
+  
+  WebsitePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !GetAtt CodePipelineRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref BucketArtifact
+      Stages:
+        - Name: Source
+          Actions:
+          - Name: Checkout
+            ActionTypeId:
+              Category: Source
+              Owner: ThirdParty
+              Provider: GitHub
+              Version: "1"
+            Configuration:
+              Owner: !Ref RepoOwner
+              Repo: !Ref RepoName
+              Branch: !Ref RepoBranchName
+              OAuthToken: !Ref AccessToken
+              PollForSourceChanges: false
+            OutputArtifacts:
+            - Name: SourceArtifact
+        - Name: Deploy
+          Actions:
+          - Name: Build
+            ActionTypeId:
+              Category: Build
+              Owner: AWS
+              Version: "1"
+              Provider: CodeBuild
+            InputArtifacts:
+              - Name: SourceArtifact
+            Configuration:
+              ProjectName: !Ref CodeBuildProject
+  
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - codebuild.amazonaws.com
+          Action:
+          - 'sts:AssumeRole'
+      Policies:
+      - PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Action:
+            - codebuild:CreateReportGroup
+            - codebuild:CreateReport
+            - codebuild:UpdateReport
+            Resource: "*"
+            Effect: Allow
+          - Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: "*"
+            Effect: Allow
+          - Action:
+            - cloudfront:CreateInvalidation
+            Effect: Allow
+            Resource: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistroId}"
+          - Action:
+            - s3:GetObject
+            - s3:GetObjectVersion
+            - s3:PutObject
+            - s3:GetBucketAcl
+            - s3:GetBucketLocation
+            - s3:ListBucket
+            - s3:DeleteObject
+            Effect: Allow
+            Resource:
+            - !Sub arn:aws:s3:::${WebsiteBucketName}
+            - !Sub arn:aws:s3:::${WebsiteBucketName}/*
+          - Action:
+            - s3:GetObject
+            - s3:GetObjectVersion
+            - s3:GetBucketAcl
+            - s3:GetBucketLocation
+            Effect: Allow
+            Resource:
+            - !GetAtt BucketArtifact.Arn
+            - !Sub ${BucketArtifact.Arn}/*
+        PolicyName: codebuild-custom-policy
+  
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: deploy-and-invalidate
+      Description: "Deploy the new website version and invaldate the cloudfront distro"
+      ServiceRole: !Ref CodeBuildRole
+      TimeoutInMinutes: 5
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        Type: LINUX_CONTAINER
+        ImagePullCredentialsType: CODEBUILD
+        EnvironmentVariables:
+        - Name: DISTRIBUTION_ID
+          Value: !Ref CloudFrontDistroId
+        - Name: BUCKET_NAME
+          Value: !Ref WebsiteBucketName
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            build:
+              commands:
+              - aws s3 sync src/ s3://${BUCKET_NAME} --delete --exact-timestamps
+            post_build:
+              commands:
+              - aws cloudfront create-invalidation --distribution-id ${DISTRIBUTION_ID} --paths "/*"
+
+  GithubWebhook:
+    Type: 'AWS::CodePipeline::Webhook'
+    Properties:
+      RegisterWithThirdParty: true
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: !Ref AccessToken
+      Filters:
+      - JsonPath: "$.ref"
+        MatchEquals: refs/heads/{RepoBranchName}
+      TargetPipeline: !Ref WebsitePipeline
+      TargetAction: Checkout
+      TargetPipelineVersion: !GetAtt WebsitePipeline.Version
