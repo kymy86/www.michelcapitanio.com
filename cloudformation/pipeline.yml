@@ -208,7 +208,7 @@ Resources:
         SecretToken: !Ref AccessToken
       Filters:
       - JsonPath: "$.ref"
-        MatchEquals: refs/heads/{RepoBranchName}
+        MatchEquals: !Sub refs/heads/${RepoBranchName}
       TargetPipeline: !Ref WebsitePipeline
       TargetAction: Checkout
       TargetPipelineVersion: !GetAtt WebsitePipeline.Version
