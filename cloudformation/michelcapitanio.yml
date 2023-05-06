@@ -7,6 +7,11 @@ Parameters:
   HostedZoneId:
     Description: Domain ID hosted zone
     Type: String
+  CloudfrontHostedZoneId:
+    Type: String
+    Description: Hosted Zone ID for CloudFront Distribution
+    Default: Z2FDTNDATAQYW2
+
 Mappings:
   S3ToHostedZoneId:
     us-east-2:
@@ -26,21 +31,58 @@ Mappings:
     eu-west-3:
       zoneid: Z3R1K369G5AVDG
 Resources:
+  
   WebsiteBucketRedirect:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref WebsiteName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: "AES256"
       WebsiteConfiguration:
         RedirectAllRequestsTo:
           HostName: !Sub www.${WebsiteName}
           Protocol: https
+  
   WebsiteBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub www.${WebsiteName}
-      AccessControl: PublicRead
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: "AES256"
       VersioningConfiguration:
         Status: Enabled
+  
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Sid: AllowSSLRequestsOnly # AWS Foundational Security Best Practices v1.0.0 S3.5
+          Effect: Deny
+          Principal: '*'
+          Action: 's3:*'
+          Resource:
+          - !GetAtt 'WebsiteBucket.Arn'
+          - !Sub '${WebsiteBucket.Arn}/*'
+          Condition:
+            Bool:
+              'aws:SecureTransport': false
+        - Sid: CloudFrontOriginAccessIdentityPolicy
+          Action: 's3:GetObject'
+          Effect: Allow
+          Principal:
+            Service: cloudfront.amazonaws.com
+          Resource: !Sub '${WebsiteBucket.Arn}/*'
+          Condition:
+            StringEquals:
+              "AWS:SourceArn": !Sub "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${WebsiteDistribution}"
+  
   WebsiteCertificate:
     Type: AWS::CertificateManager::Certificate
     Properties:
@@ -50,11 +92,18 @@ Resources:
       DomainValidationOptions:
       - DomainName: !Ref WebsiteName
         ValidationDomain: !Ref WebsiteName
-  WebsiteOriginAccessIdentity:
-    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+
+  # CloudFront origin Access Control to expose S3 bucket through CloudFront
+  CloudFrontOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
     Properties:
-      CloudFrontOriginAccessIdentityConfig:
-        Comment: !Sub ${WebsiteName} CloudFront Origin access identity
+      OriginAccessControlConfig:
+        Description: !Sub Access to ${WebsiteBucket}
+        Name: !Sub ${WebsiteBucket}-origin-access-control
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+  
   WebsiteDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
@@ -76,12 +125,14 @@ Resources:
         Origins:
         - DomainName: !GetAtt WebsiteBucket.DomainName
           Id: !Sub S3-www.${WebsiteName}
+          OriginAccessControlId: !GetAtt CloudFrontOriginAccessControl.Id
           S3OriginConfig:
-            OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${WebsiteOriginAccessIdentity}
+            OriginAccessIdentity: ""
         ViewerCertificate:
           AcmCertificateArn: !Ref WebsiteCertificate
-          MinimumProtocolVersion: TLSv1.1_2016
+          MinimumProtocolVersion: TLSv1.2_2021
           SslSupportMethod: sni-only
+
   WebsiteRedirectRecordSet:
     Type: AWS::Route53::RecordSet
     DependsOn: WebsiteBucketRedirect
@@ -89,19 +140,21 @@ Resources:
       Name: !Ref WebsiteName
       Type: A
       AliasTarget:
-        DNSName: !Sub s3-website-${AWS::Region}.amazonaws.com
+        DNSName: !Sub s3-website.${AWS::Region}.amazonaws.com
         HostedZoneId: !FindInMap [S3ToHostedZoneId, !Ref "AWS::Region", zoneid]
       HostedZoneId: !Ref HostedZoneId
+
   WebsiteRecordSet:
     Type: AWS::Route53::RecordSet
     DependsOn: WebsiteBucket
     Properties:
       Name: !Sub www.${WebsiteName}
+      Type: A
       HostedZoneId: !Ref HostedZoneId
-      Type: CNAME
-      TTL: 300
-      ResourceRecords:
-      - !GetAtt WebsiteDistribution.DomainName
+      AliasTarget:
+        DNSName: !GetAtt WebsiteDistribution.DomainName
+        HostedZoneId: !Ref CloudfrontHostedZoneId
+
 Outputs:
   Website:
     Value: !Sub https://www.${WebsiteName}

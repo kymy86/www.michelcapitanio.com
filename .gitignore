@@ -5,4 +5,5 @@ parameters.json
 ./*.tfstate
 terraform.tfplan
 terraform.tfstate
+.terraform.lock.hcl
 *.backup
