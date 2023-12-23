@@ -14,3 +14,9 @@ variable "website_name" {
   type        = string
   default     = "michelcapitanio.com"
 }
+
+variable "certs_name" {
+  description = "Name of the certification domain"
+  type        = string
+  default     = "certs"
+}

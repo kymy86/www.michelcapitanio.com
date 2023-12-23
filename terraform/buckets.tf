@@ -138,3 +138,84 @@ data "aws_iam_policy_document" "website-bucket-policy"{
     }
 }
 
+######################### Certification bucket ############################
+
+
+resource "aws_s3_bucket" "certs_bucket" {
+  provider = aws.certs
+  bucket   = "${var.certs_name}.${var.website_name}"
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "certs_encryption_config" {
+  provider = aws.certs
+  bucket   = aws_s3_bucket.certs_bucket.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_ownership_controls" "certs_bucket_own_control" {
+  provider = aws.certs
+  bucket   = aws_s3_bucket.certs_bucket.id
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+}
+
+resource "aws_s3_bucket_acl" "certs_bucket_acl" {
+  provider = aws.certs
+  depends_on = [
+    aws_s3_bucket_ownership_controls.certs_bucket_own_control
+  ]
+  bucket = aws_s3_bucket.certs_bucket.id
+  acl    = "private"
+}
+
+resource "aws_s3_bucket_public_access_block" "certs_bucket_public_access" {
+  provider = aws.certs
+  bucket   = aws_s3_bucket.certs_bucket.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_policy" "certs_bucket_policy" {
+    provider = aws.certs
+    bucket   = aws_s3_bucket.certs_bucket.id
+    policy = data.aws_iam_policy_document.certs_bucket_policy.json
+}
+
+data "aws_iam_policy_document" "certs_bucket_policy"{
+    statement {
+      actions = ["s3:*"]
+      resources = [aws_s3_bucket.certs_bucket.arn, "${aws_s3_bucket.certs_bucket.arn}/*"]
+      effect = "Deny"
+      principals {
+        type = "*"
+        identifiers = ["*"]
+      }
+      condition {
+        test = "Bool"
+        values = ["false"]
+        variable = "aws:SecureTransport"
+      }
+    }
+    statement {
+        actions = ["s3:GetObject"]
+        effect = "Allow"
+        resources = ["${aws_s3_bucket.certs_bucket.arn}/*"]
+        principals {
+            type = "Service"
+            identifiers = ["cloudfront.amazonaws.com"]
+        }
+        condition{
+            test = "StringEquals"
+            variable="AWS:SourceArn"
+            values = [aws_cloudfront_distribution.certs_distribution.arn]
+        }
+    }
+}
